@@ -24,11 +24,11 @@ z_size = 200
 leak_value = 0.2
 cube_len = 64
 obj_ratio = 0.7
-obj = 'cone'
+obj = 'airplane'
 
 input_height = 192
 input_width = 256
-c_dim = 32
+c_dim = 4
 
 train_sample_directory = './train_sample/'
 model_directory = './models/'
@@ -134,6 +134,7 @@ def initialiseWeights():
 def trainGAN(is_dummy=False, checkpoint=None):
     weights = initialiseWeights()
 
+    #z_vector = tf.placeholder(shape=[batch_size, z_size], dtype=tf.float32)
     z_vector = tf.placeholder(shape=[batch_size, z_size], dtype=tf.float32)
     x_vector = tf.placeholder(shape=[batch_size, cube_len, cube_len, cube_len, 1], dtype=tf.float32)
 
@@ -215,13 +216,18 @@ def trainGAN(is_dummy=False, checkpoint=None):
             x = volumes[idx]
 
             # Draw random samples from a normal (Gaussian) distribution.
-            z_sample = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
-            z = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
+            #z_sample = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
+            #z = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
             # z = np.random.uniform(0, 1, size=[batch_size, z_size]).astype(np.float32)
 
             # try sample z from the image
-            #zidx = np.random.randint(input_width * input_height, size=[batch_size, c_dim])
-            #z = images[0][zidx]
+            zidx = np.random.randint(len(images), size=batch_size)
+            sample_img = images[zidx].flatten()
+            z_sample = np.random.choice(sample_img, size=[batch_size, z_size])
+
+            zidx = np.random.randint(len(images), size=batch_size)
+            sample_img = images[zidx].flatten()
+            z = np.random.choice(sample_img, size=[batch_size, z_size])
 
             # Update the discriminator and generator
             d_summary_merge = tf.summary.merge([summary_d_loss,

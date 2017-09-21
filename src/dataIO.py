@@ -116,10 +116,11 @@ def getImages(obj='000003',train=True):
     list = os.listdir(objPath)
 
     for i in range(len(list)):
-        img = skio.imread(objPath + list[i])
+        #img = skio.imread(objPath + list[i])
+        img = PngToMatrix(objPath + list[i], flatten=True)
         images.append(np.array(img))
 
-    return images
+    return np.array(images)
 
 def PngToMatrix(pngfilepath, flatten = False):
     """
