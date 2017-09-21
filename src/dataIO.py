@@ -14,9 +14,9 @@ try:
     from stl import mesh
 except:
     pass
-    print 'All dependencies not loaded, some functionality may not work'
+    print ('All dependencies not loaded, some functionality may not work')
 
-LOCAL_PATH = '/home/meetshah1995/datasets/ModelNet/3DShapeNets/volumetric_data/'
+LOCAL_PATH = 'c:/Datasets/Shapenet/3DShapeNets/volumetric_data/'
 SERVER_PATH = '/home/gpu_users/meetshah/3dgan/volumetric_data/'
 
 def getVF(path):
@@ -48,7 +48,7 @@ def plotFromVoxels(voxels):
     plt.show()
 
 def getVFByMarchingCubes(voxels, threshold=0.5):
-    v, f =  sk.marching_cubes(voxels, level=threshold)
+    v, f, _, _ = sk.marching_cubes(voxels, level=threshold)
     return v, f
 
 def plotMeshFromVoxels(voxels, threshold=0.5):
@@ -83,7 +83,7 @@ def getVoxelFromMat(path, cube_len=64):
         voxels = nd.zoom(voxels, (2,2,2), mode='constant', order=0)
     return voxels
 
-def getAll(obj='airplane',train=True, is_local=False, cube_len=64, obj_ratio=1.0):
+def getAll(obj='airplane',train=True, is_local=True, cube_len=64, obj_ratio=1.0):
     objPath = SERVER_PATH + obj + '/30/'
     if is_local:
         objPath = LOCAL_PATH + obj + '/30/'
