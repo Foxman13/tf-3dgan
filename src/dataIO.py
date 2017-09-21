@@ -1,11 +1,13 @@
 import sys
 import os
-
+import math
 import scipy.ndimage as nd
 import scipy.io as io
 import numpy as np
 import matplotlib.pyplot as plt
 import skimage.measure as sk
+import skimage.io as skio
+import scipy.misc as scipymisc
 
 from mpl_toolkits import mplot3d
 
@@ -17,6 +19,7 @@ except:
     print ('All dependencies not loaded, some functionality may not work')
 
 LOCAL_PATH = 'c:/Datasets/Shapenet/3DShapeNets/volumetric_data/'
+DS_PATH = 'C:/Datasets/ShapeNet/'
 SERVER_PATH = '/home/gpu_users/meetshah/3dgan/volumetric_data/'
 
 def getVF(path):
@@ -77,7 +80,8 @@ def getVolumeFromOFF(path, sideLen=32):
     return volume.astype(np.bool)
 
 def getVoxelFromMat(path, cube_len=64):
-    voxels = io.loadmat(path)['instance']
+    mat = io.loadmat(path)
+    voxels = mat['instance']
     voxels = np.pad(voxels,(1,1),'constant',constant_values=(0,0))
     if cube_len != 32 and cube_len == 64:
         voxels = nd.zoom(voxels, (2,2,2), mode='constant', order=0)
@@ -88,11 +92,74 @@ def getAll(obj='airplane',train=True, is_local=True, cube_len=64, obj_ratio=1.0)
     if is_local:
         objPath = LOCAL_PATH + obj + '/30/'
     objPath += 'train/' if train else 'test/'
+
     fileList = [f for f in os.listdir(objPath) if f.endswith('.mat')]
     fileList = fileList[0:int(obj_ratio*len(fileList))]
     volumeBatch = np.asarray([getVoxelFromMat(objPath + f, cube_len) for f in fileList],dtype=np.bool)
     return volumeBatch
 
+def getVoxelsFromModelFile(obj='airplane', train=True):
+    objPath = DS_PATH + 'train_voxels/' if train else 'val_voxels/'
+    objPath = objPath + obj + '/'
+    path = objPath + 'model.mat'
+    mat = io.loadmat(path)
+    voxels = mat['input']
+    #voxels = np.pad(voxels, (1, 1), 'constant', constant_values=(0, 0))
+    volumeBatch = np.asarray(voxels, dtype=np.bool)
+    return volumeBatch
+
+def getImages(obj='000003',train=True):
+    images = []
+
+    objPath = DS_PATH + 'train_imgs/' if train else 'val_imgs/' + obj
+    objPath = objPath + obj + '/'
+    list = os.listdir(objPath)
+
+    for i in range(len(list)):
+        img = skio.imread(objPath + list[i])
+        images.append(np.array(img))
+
+    return images
+
+def PngToMatrix(pngfilepath, flatten = False):
+    """
+    """
+    imagedata = scipymisc.imread(pngfilepath, False)
+    width = len(imagedata[0])
+    height = len(imagedata)
+    depthinbytes = len(imagedata[0, 0])
+
+    print('Loaded image with size ' + str(width) + 'x' + str(height) + 'x' + str(depthinbytes))
+
+    imageasbitmatrix = [[]]
+
+    if (flatten):
+        imageasbitmatrix = np.zeros((width, height))
+    else:
+        imageasbitmatrix = np.zeros((width, height, depthinbytes * 8))
+
+    depthaverage = 0
+
+    for w in range(0, width):
+        for h in range(0, height):
+            for d in range(0, depthinbytes):
+                value = imagedata[h, w, d]
+                #print('[' + str(w) + ', ' + str(h) + ', ' + str(d) + '] == ' + str(value))
+                depthaverage += value
+
+                if (d == depthinbytes - 1):
+                    if (depthaverage != 0):
+                        depthaverage /= depthinbytes # This is essentially making a grayscale translation
+
+                        if (flatten):
+                            imageasbitmatrix[w, h] = int(round(depthaverage))
+                        else:
+                            z = int(math.ceil(depthaverage / 8)) - 1
+                            imageasbitmatrix[w, h, z] = 1
+
+                    depthaverage = 0
+
+    return imageasbitmatrix
 
 if __name__ == '__main__':
     path = sys.argv[1]

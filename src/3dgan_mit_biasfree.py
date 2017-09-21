@@ -24,7 +24,11 @@ z_size = 200
 leak_value = 0.2
 cube_len = 64
 obj_ratio = 0.7
-obj = 'chair'
+obj = 'cone'
+
+input_height = 192
+input_width = 256
+c_dim = 32
 
 train_sample_directory = './train_sample/'
 model_directory = './models/'
@@ -39,24 +43,31 @@ def generator(z, batch_size=batch_size, phase_train=True, reuse=False):
     with tf.variable_scope("gen", reuse=reuse):
         z = tf.reshape(z, (batch_size, 1, 1, 1, z_size))
         g_1 = tf.nn.conv3d_transpose(z, weights['wg1'], (batch_size, 4, 4, 4, 512), strides=[1, 1, 1, 1, 1],
+        #                             padding="VALID")
+        #g_1 = tf.nn.conv3d_transpose(z, weights['wg1'], (batch_size, 16, 16, 16, 512), strides=[1, 1, 1, 1, 1],
                                      padding="VALID")
         g_1 = tf.contrib.layers.batch_norm(g_1, is_training=phase_train)
         g_1 = tf.nn.relu(g_1)
 
         g_2 = tf.nn.conv3d_transpose(g_1, weights['wg2'], (batch_size, 8, 8, 8, 256), strides=strides, padding="SAME")
+        #g_2 = tf.nn.conv3d_transpose(g_1, weights['wg2'], (batch_size, 32, 32, 32, 256), strides=strides, padding="SAME")
         g_2 = tf.contrib.layers.batch_norm(g_2, is_training=phase_train)
         g_2 = tf.nn.relu(g_2)
 
         g_3 = tf.nn.conv3d_transpose(g_2, weights['wg3'], (batch_size, 16, 16, 16, 128), strides=strides,
+        #                             padding="SAME")
+        #g_3 = tf.nn.conv3d_transpose(g_2, weights['wg3'], (batch_size, 64, 64, 64, 128), strides=strides,
                                      padding="SAME")
         g_3 = tf.contrib.layers.batch_norm(g_3, is_training=phase_train)
         g_3 = tf.nn.relu(g_3)
 
         g_4 = tf.nn.conv3d_transpose(g_3, weights['wg4'], (batch_size, 32, 32, 32, 64), strides=strides, padding="SAME")
+        #g_4 = tf.nn.conv3d_transpose(g_3, weights['wg4'], (batch_size, 128, 128, 128, 64), strides=strides, padding="SAME")
         g_4 = tf.contrib.layers.batch_norm(g_4, is_training=phase_train)
         g_4 = tf.nn.relu(g_4)
 
         g_5 = tf.nn.conv3d_transpose(g_4, weights['wg5'], (batch_size, 64, 64, 64, 1), strides=strides, padding="SAME")
+        #g_5 = tf.nn.conv3d_transpose(g_4, weights['wg5'], (batch_size, 256, 256, 256, 1), strides=strides, padding="SAME")
         # g_5 = tf.nn.sigmoid(g_5)
         g_5 = tf.nn.tanh(g_5)
 
@@ -172,7 +183,11 @@ def trainGAN(is_dummy=False, checkpoint=None):
     saver = tf.train.Saver()
     vis = visdom.Visdom()
 
-    with tf.Session() as sess:
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=1.0)
+    gpu_options.allow_growth = True
+    run_config = tf.ConfigProto(gpu_options=gpu_options)
+
+    with tf.Session(config=run_config) as sess:
 
         sess.run(tf.global_variables_initializer())
         if checkpoint is not None:
@@ -183,18 +198,30 @@ def trainGAN(is_dummy=False, checkpoint=None):
             print('Using Dummy Data')
         else:
             volumes = d.getAll(obj=obj, train=True, is_local=is_local, obj_ratio=obj_ratio)
+            #volumes = d.getVoxelsFromModelFile(obj=obj, train=True)
             print('Using ' + obj + ' Data')
         volumes = volumes[..., np.newaxis].astype(np.float)
         # volumes *= 2.0
         # volumes -= 1.0
 
+        # load the images for training
+
+        images = d.getImages(obj='000003')
+
         for epoch in range(n_epochs):
 
+            # get a sample from the model
             idx = np.random.randint(len(volumes), size=batch_size)
             x = volumes[idx]
+
+            # Draw random samples from a normal (Gaussian) distribution.
             z_sample = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
             z = np.random.normal(0, 0.33, size=[batch_size, z_size]).astype(np.float32)
             # z = np.random.uniform(0, 1, size=[batch_size, z_size]).astype(np.float32)
+
+            # try sample z from the image
+            #zidx = np.random.randint(input_width * input_height, size=[batch_size, c_dim])
+            #z = images[0][zidx]
 
             # Update the discriminator and generator
             d_summary_merge = tf.summary.merge([summary_d_loss,
